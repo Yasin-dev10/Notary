@@ -12,7 +12,7 @@ export async function GET(
         const headersList = await headers();
         const tenantId = headersList.get("x-tenant-id");
 
-        const document = await prisma.document.findUnique({
+        const document = await prisma.document.findFirst({
             where: { id, tenantId: tenantId || undefined },
             include: {
                 versions: {
@@ -24,7 +24,7 @@ export async function GET(
 
         if (!document) return NextResponse.json({ error: "Document not found" }, { status: 404 });
 
-        return NextResponse.json(document.versions);
+        return NextResponse.json((document as any).versions);
     } catch (error) {
         console.error("GET versions error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -1,30 +1,25 @@
 import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-import { PrismaPg } from "@prisma/adapter-pg";
-
-const globalForPrisma = globalThis as unknown as {
-    prisma: ReturnType<typeof makePrismaClient> | undefined;
-};
-
-function makePrismaClient() {
-    // Revert to the correct Prisma v7 configuration
-    return new PrismaClient({
-        accelerateUrl: process.env.DATABASE_URL as string,
-        log:
-            process.env.NODE_ENV === "development"
-                ? ["error", "warn"]
-                : ["error"],
-    }).$extends(withAccelerate());
+// Disable TLS reject for development if needed
+if (process.env.NODE_ENV === "development") {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
-const globalForPrismaUpdated = globalThis as unknown as {
-    prisma_reloaded: ReturnType<typeof makePrismaClient> | undefined;
+const prismaClientSingleton = () => {
+    return new PrismaClient({
+        log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    }).$extends(withAccelerate());
 };
 
-export const prisma = globalForPrismaUpdated.prisma_reloaded ?? makePrismaClient();
+type PrismaClientWithExtensions = ReturnType<typeof prismaClientSingleton>;
 
-if (process.env.NODE_ENV !== "production") globalForPrismaUpdated.prisma_reloaded = prisma;
+const globalForPrisma = globalThis as unknown as {
+    prisma: PrismaClientWithExtensions | undefined;
+};
+
+export const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export default prisma;

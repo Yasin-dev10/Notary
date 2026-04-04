@@ -9,7 +9,7 @@ export async function GET(
     try {
         const { token } = await params;
 
-        const signer = await prisma.documentSigner.findUnique({
+        const signer = await prisma.documentSigner.findFirst({
             where: { token },
             include: {
                 document: {

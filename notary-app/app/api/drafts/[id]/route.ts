@@ -5,14 +5,15 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const draft = await prisma.draftDocument.findFirst({
         where: {
-            id: params.id,
+            id: id,
             tenantId: session.user.tenantId,
             deletedAt: null,
         },
@@ -29,8 +30,9 @@ export async function GET(
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -38,7 +40,7 @@ export async function PATCH(
 
     const draft = await prisma.draftDocument.updateMany({
         where: {
-            id: params.id,
+            id: id,
             tenantId: session.user.tenantId,
         },
         data: {
@@ -52,13 +54,14 @@ export async function PATCH(
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await context.params;
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await prisma.draftDocument.updateMany({
-        where: { id: params.id, tenantId: session.user.tenantId },
+        where: { id: id, tenantId: session.user.tenantId },
         data: { deletedAt: new Date() },
     });
 
