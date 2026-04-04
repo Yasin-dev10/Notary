@@ -1,0 +1,25 @@
+{
+  "Sidebar": {
+    "dashboard": "Boodhka",
+    "clients": "Macaamiisha",
+    "appointments": "Ballamaha",
+    "documents": "Dukumentiyada",
+    "drafts": "Qoraalada",
+    "transactions": "Dhaqdhaqaaqa",
+    "settings": "Dejinta",
+    "logout": "Ka Bax"
+  },
+  "Dashboard": {
+    "welcome": "Soo dhawow",
+    "recent_activity": "Dhaqdhaqaaqii U Dambeeyay",
+    "quick_actions": "Ficilada Degdega ah",
+    "total_appointments": "Ballamaha Guud",
+    "total_clients": "Macaamiisha Guud",
+    "total_documents": "Dukumentiyada Guud",
+    "revenue": "Dakhliga"
+  },
+  "Language": {
+    "switch": "Switch to English",
+    "current": "Soomaali"
+  }
+}

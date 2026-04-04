@@ -1,0 +1,25 @@
+{
+  "Sidebar": {
+    "dashboard": "Dashboard",
+    "clients": "Clients",
+    "appointments": "Appointments",
+    "documents": "Documents",
+    "drafts": "Drafts",
+    "transactions": "Transactions",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "Dashboard": {
+    "welcome": "Welcome back",
+    "recent_activity": "Recent Activity",
+    "quick_actions": "Quick Actions",
+    "total_appointments": "Total Appointments",
+    "total_clients": "Total Clients",
+    "total_documents": "Total Documents",
+    "revenue": "Revenue"
+  },
+  "Language": {
+    "switch": "Ku baddal Soomaali",
+    "current": "English"
+  }
+}

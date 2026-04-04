@@ -1,0 +1,595 @@
+// This is your Prisma schema file
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  NOTARY
+  STAFF
+  AUDITOR
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_NOTARIZATION
+  NOTARIZED
+  REJECTED
+}
+
+enum DocumentType {
+  UPLOADED  // Documents uploaded to the system
+  GENERATED // Documents created within the system using forms
+}
+
+enum SignerRole {
+  CLIENT
+  NOTARY
+  WITNESS
+  OTHER
+}
+
+enum AttachmentType {
+  ID_DOCUMENT
+  PHOTO
+  SUPPORTING_DOCUMENT
+  OTHER
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  PARTIALLY_PAID
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  UPLOAD
+  DOWNLOAD
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  BOTH
+}
+
+enum NotificationCategory {
+  NOTARIZATION_COMPLETE
+  DOCUMENT_EXPIRING
+  APPOINTMENT_REMINDER
+}
+
+// ─────────────────────────────────────────────
+// SYSTEM SETTINGS (GLOBAL)
+// ─────────────────────────────────────────────
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// TENANT (ORGANIZATION)
+// ─────────────────────────────────────────────
+
+model Tenant {
+  id               String           @id @default(uuid())
+  name             String
+  slug             String           @unique
+  customDomain     String?          @unique
+  email            String?
+  phone            String?
+  address          String?
+  logoUrl          String?
+  themeColor       String?          @default("#6366f1")
+  subscriptionPlan SubscriptionPlan @default(FREE)
+  isActive         Boolean          @default(true)
+  commissionRate   Float?           @default(0.0)
+  deletedAt        DateTime?
+
+  // Relations
+  users             User[]
+  clients           Client[]
+  appointments      Appointment[]
+  documents         Document[]
+  transactions      Transaction[]
+  invites           Invite[]
+  activityLogs      ActivityLog[]
+  documentTemplates DocumentTemplate[]
+  draftDocuments    DraftDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([customDomain])
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  avatarUrl String?
+  role      Role      @default(STAFF)
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Relations
+  appointments Appointment[] @relation("NotaryAppointments")
+  documents    Document[]    @relation("UploadedDocuments")
+  documentVersions DocumentVersion[]
+  transactions Transaction[]
+  activityLogs ActivityLog[]
+
+  lastLoginAt DateTime?
+  
+  // 2FA Fields
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+// ─────────────────────────────────────────────
+// INVITE
+// ─────────────────────────────────────────────
+
+model Invite {
+  id        String    @id @default(uuid())
+  email     String
+  role      Role
+  token     String    @unique
+  expiresAt DateTime
+  accepted  Boolean   @default(false)
+  deletedAt DateTime?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([token])
+}
+
+// ─────────────────────────────────────────────
+// CLIENT
+// ─────────────────────────────────────────────
+
+model Client {
+  id           String    @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  country      String?   @default("US")
+  dateOfBirth  DateTime?
+  idType       String? // Passport, Driver's License, etc.
+  idNumber     String?
+  idExpiryDate DateTime?
+  idImageUrl   String? // Store the path to the ID photo
+  notes        String?
+  deletedAt    DateTime?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  // Relations
+  appointments   Appointment[]
+  documents      Document[]
+  transactions   Transaction[]
+  draftDocuments DraftDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([email])
+}
+
+// ─────────────────────────────────────────────
+// APPOINTMENT
+// ─────────────────────────────────────────────
+
+model Appointment {
+  id          String            @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  status      AppointmentStatus @default(PENDING)
+  notes       String?
+  deletedAt   DateTime?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  notaryId String?
+  notary   User?   @relation("NotaryAppointments", fields: [notaryId], references: [id])
+
+  // Relations
+  documents    Document[]
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@index([notaryId])
+  @@index([startTime])
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT
+// ─────────────────────────────────────────────
+
+model Document {
+  id               String         @id @default(uuid())
+  name             String
+  description      String?
+  fileUrl          String
+  fileSize         Int?
+  mimeType         String?
+  status           DocumentStatus @default(DRAFT)
+  notarizationDate DateTime?
+  trackingId       String?        @unique // QR code tracking ID
+  verificationHash String?        @unique // Security hash for verification
+  deletedAt        DateTime?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  uploadedById String?
+  uploadedBy   User?   @relation("UploadedDocuments", fields: [uploadedById], references: [id])
+
+  type         DocumentType @default(UPLOADED)
+  documentData Json?
+
+  expiryDate       DateTime?
+  expiryNotified   Boolean   @default(false)
+  notifiedAt       DateTime? // When the client was notified of notarization
+
+  signatures   Signature[]
+  signers      DocumentSigner[]
+  attachments  Attachment[]
+  versions     DocumentVersion[]
+
+  // Audit trail
+  auditLogs DocumentAudit[]
+  notifications NotificationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@index([appointmentId])
+  @@index([expiryDate])
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATION LOG
+// ─────────────────────────────────────────────
+
+model NotificationLog {
+  id         String               @id @default(uuid())
+  type       NotificationType
+  category   NotificationCategory
+  recipient  String               // Email or Phone number
+  status     String               @default("SENT") // SENT, FAILED, DELIVERED
+  message    String?
+  error      String?
+
+  documentId String?
+  document   Document?            @relation(fields: [documentId], references: [id])
+
+  tenantId   String
+  createdAt  DateTime             @default(now())
+
+  @@index([documentId])
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT AUDIT
+// ─────────────────────────────────────────────
+
+model DocumentAudit {
+  id        String  @id @default(uuid())
+  action    String
+  fieldName String?
+  oldValue  String?
+  newValue  String?
+  changedBy String?
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT VERSION
+// ─────────────────────────────────────────────
+
+model DocumentVersion {
+  id           String   @id @default(uuid())
+  version      Int
+  fileUrl      String
+  fileSize     Int?
+  mimeType     String?
+  documentData Json?
+
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+
+  createdAt    DateTime @default(now())
+
+  @@index([documentId])
+  @@index([uploadedById])
+}
+
+// ─────────────────────────────────────────────
+// SIGNATURE
+// ─────────────────────────────────────────────
+
+model Signature {
+  id           String      @id @default(uuid())
+  signatureUrl String
+  snapshotUrl  String?     // Live photo of the person signing
+  signerName   String
+  signerRole   SignerRole  @default(CLIENT)
+  signedAt     DateTime    @default(now())
+  ipAddress    String?
+  
+  documentId   String
+  document     Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  signer       DocumentSigner?
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([documentId])
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT SIGNER (MULTIPARTY WORKFLOW)
+// ─────────────────────────────────────────────
+
+model DocumentSigner {
+  id           String      @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  role         SignerRole  @default(CLIENT)
+  order        Int         @default(1)    // sequential signing order
+  status       String      @default("PENDING") // PENDING, NOTIFIED, COMPLETED
+  token        String      @unique @default(cuid()) // unique token for their signing link
+  
+  signatureId  String?     @unique
+  signature    Signature?  @relation(fields: [signatureId], references: [id])
+  
+  documentId   String
+  document     Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([documentId])
+  @@index([token])
+}
+
+// ─────────────────────────────────────────────
+// ATTACHMENT
+// ─────────────────────────────────────────────
+
+model Attachment {
+  id          String         @id @default(uuid())
+  fileUrl     String
+  fileName    String?
+  fileSize    Int?
+  mimeType    String?
+  description String?
+  type        AttachmentType @default(OTHER)
+  
+  documentId  String
+  document    Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([documentId])
+}
+
+// ─────────────────────────────────────────────
+// TRANSACTION
+// ─────────────────────────────────────────────
+
+model Transaction {
+  id            String        @id @default(uuid())
+  description   String
+  amount        Float
+  currency      String        @default("USD")
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentMethod String?
+  receiptUrl    String?
+  notes         String?
+  deletedAt     DateTime?
+  
+  // Local Payment Gateway & Revenue Split
+  tenantRevenue Float?
+  systemRevenue Float?
+  gatewayData   Json?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  processedById String?
+  processedBy   User?   @relation(fields: [processedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+  @@index([appointmentId])
+}
+
+// ─────────────────────────────────────────────
+// ACTIVITY LOG
+// ─────────────────────────────────────────────
+
+model ActivityLog {
+  id        String         @id @default(uuid())
+  action    ActivityAction
+  entity    String
+  entityId  String?
+  details   String?
+  ipAddress String?
+  userAgent String?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENT TEMPLATES (DRAFTING TOOL)
+// ─────────────────────────────────────────────
+
+model DocumentTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    String   // e.g. "real_estate", "vehicle", "legal"
+  content     String   @db.Text  // Template body with {{variable}} placeholders
+  fields      Json     // Array of field definitions [{name, label, type, required, placeholder}]
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  deletedAt   DateTime?
+
+  tenantId    String?  // null = global/system template
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+
+  draftDocuments DraftDocument[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([category])
+}
+
+model DraftDocument {
+  id           String    @id @default(uuid())
+  title        String
+  fieldValues  Json      // Filled values: {fieldName: value}
+  generatedPdfUrl String?
+  status       String    @default("DRAFT") // DRAFT, FINALIZED
+  notes        String?
+  deletedAt    DateTime?
+
+  tenantId     String
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+
+  templateId   String
+  template     DocumentTemplate @relation(fields: [templateId], references: [id])
+
+  clientId     String?
+  client       Client?  @relation(fields: [clientId], references: [id])
+
+  createdById  String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([clientId])
+}
