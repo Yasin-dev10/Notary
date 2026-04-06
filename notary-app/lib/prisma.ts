@@ -6,6 +6,12 @@ if (process.env.NODE_ENV === "development") {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
+// Ensure Prisma has a dummy accelerate URL at build time if env variable is missing
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "prisma://accelerate.prisma-data.net/?api_key=dummy";
+}
+
+// Delay instantiation until first use to prevent build-time evaluation crashing in Next.js
 const prismaClientSingleton = () => {
     return new PrismaClient({
         log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],

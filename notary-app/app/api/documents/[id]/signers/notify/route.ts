@@ -21,7 +21,7 @@ export async function POST(
         }
 
         // Find the first PENDING signer (next one to be notified)
-        const nextSigner = signers.find((s) => s.status === "PENDING");
+        const nextSigner = signers.find((s: any) => s.status === "PENDING");
 
         if (!nextSigner) {
             return NextResponse.json({ message: "All signers have already completed signing" });
