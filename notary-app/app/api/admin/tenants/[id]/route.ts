@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { Role } from "@prisma/client";
 
 const updateSchema = z.object({
     isActive: z.boolean().optional(),
@@ -19,7 +18,7 @@ export async function GET(
     const userRole = headersList.get("x-user-role");
     const { id } = await params;
 
-    if (userRole !== Role.SUPER_ADMIN) {
+    if (userRole !== "SUPER_ADMIN") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -46,7 +45,7 @@ export async function PATCH(
     const userRole = headersList.get("x-user-role");
     const { id } = await params;
 
-    if (userRole !== Role.SUPER_ADMIN) {
+    if (userRole !== "SUPER_ADMIN") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -79,7 +78,7 @@ export async function DELETE(
     const userRole = headersList.get("x-user-role");
     const { id } = await params;
 
-    if (userRole !== Role.SUPER_ADMIN) {
+    if (userRole !== "SUPER_ADMIN") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
