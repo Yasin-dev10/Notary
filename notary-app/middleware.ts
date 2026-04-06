@@ -28,9 +28,9 @@ export async function middleware(request: NextRequest) {
 
         // Inject tenant context into request headers so API routes can read it
         const requestHeaders = new Headers(request.headers);
-        requestHeaders.set("x-tenant-id", token.tenantId as string);
-        requestHeaders.set("x-user-id", token.id as string);
-        requestHeaders.set("x-user-role", token.role as string);
+        if (token.tenantId) requestHeaders.set("x-tenant-id", String(token.tenantId));
+        if (token.id) requestHeaders.set("x-user-id", String(token.id));
+        if (token.role) requestHeaders.set("x-user-role", String(token.role));
 
         // Super admin route protection
         if (pathname.startsWith("/admin") && token.role !== "SUPER_ADMIN") {
@@ -43,7 +43,10 @@ export async function middleware(request: NextRequest) {
             },
         });
     } catch (error: any) {
-        return new NextResponse(`Middleware crashed: ${error.message}`, { status: 500 });
+        console.error("Middleware explicitly caught an error:", error);
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("error", "middleware_crash");
+        return NextResponse.redirect(loginUrl);
     }
 }
 
