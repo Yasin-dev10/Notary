@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { Role } from "@prisma/client";
 
 // GET /api/admin/settings
 export async function GET(request: Request) {
     const headersList = await headers();
     const userRole = headersList.get("x-user-role");
 
-    if (userRole !== Role.SUPER_ADMIN) {
+    if (userRole !== "SUPER_ADMIN") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
     const headersList = await headers();
     const userRole = headersList.get("x-user-role");
 
-    if (userRole !== Role.SUPER_ADMIN) {
+    if (userRole !== "SUPER_ADMIN") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
