@@ -9,16 +9,11 @@ export async function GET(
     try {
         const { token } = await params;
 
-        const signer = await prisma.documentSigner.findFirst({
+        const signer: any = await prisma.documentSigner.findFirst({
             where: { token },
             include: {
                 document: {
-                    select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        fileUrl: true,
-                        status: true,
+                    include: {
                         signers: {
                             orderBy: { order: "asc" },
                             select: { id: true, name: true, role: true, status: true, order: true },
@@ -39,8 +34,8 @@ export async function GET(
         }
 
         // Enforce sequential order — check that all previous signers have completed
-        const prevSigners = signer.document.signers.filter((s) => s.order < signer.order);
-        const allPrevCompleted = prevSigners.every((s) => s.status === "COMPLETED");
+        const prevSigners = signer.document.signers.filter((s: any) => s.order < signer.order);
+        const allPrevCompleted = prevSigners.every((s: any) => s.status === "COMPLETED");
 
         if (!allPrevCompleted) {
             return NextResponse.json({
@@ -70,7 +65,7 @@ export async function POST(
             return NextResponse.json({ error: "signatureUrl is required" }, { status: 400 });
         }
 
-        const signer = await prisma.documentSigner.findUnique({
+        const signer: any = await prisma.documentSigner.findUnique({
             where: { token },
             include: {
                 document: {
@@ -90,8 +85,8 @@ export async function POST(
         }
 
         // Enforce sequential order
-        const prevSigners = signer.document.signers.filter((s) => s.order < signer.order);
-        const allPrevCompleted = prevSigners.every((s) => s.status === "COMPLETED");
+        const prevSigners = signer.document.signers.filter((s: any) => s.order < signer.order);
+        const allPrevCompleted = prevSigners.every((s: any) => s.status === "COMPLETED");
         if (!allPrevCompleted) {
             return NextResponse.json({ error: "It is not yet your turn to sign" }, { status: 400 });
         }
@@ -120,7 +115,7 @@ export async function POST(
         // Check if ALL signers have completed — if so, change document status to PENDING_NOTARIZATION
         const allSigners = signer.document.signers;
         const remainingSigners = allSigners.filter(
-            (s) => s.id !== signer.id && s.status !== "COMPLETED"
+            (s: any) => s.id !== signer.id && s.status !== "COMPLETED"
         );
 
         if (remainingSigners.length === 0) {
@@ -130,7 +125,7 @@ export async function POST(
             });
         } else {
             // Auto-notify the next signer in line
-            const nextSigner = remainingSigners.sort((a, b) => a.order - b.order)[0];
+            const nextSigner = remainingSigners.sort((a: any, b: any) => a.order - b.order)[0];
             const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
             const nextSigningUrl = `${baseUrl}/sign/${nextSigner.id}`;
 
